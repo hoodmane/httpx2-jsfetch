@@ -10,9 +10,7 @@ from pathlib import Path
 
 import httpx2
 import pytest
-
 from pytest_pyodide.runner import SeleniumChromeRunner
-
 
 Message = typing.Dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]

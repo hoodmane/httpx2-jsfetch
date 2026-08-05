@@ -1,10 +1,6 @@
 #!/bin/sh -e
 
-export SOURCE_FILES="httpx2_jsfetch tests"
-
 set -x
 
 uv lock --check
-uv run ruff format --check --diff $SOURCE_FILES
-uv run mypy $SOURCE_FILES
-uv run ruff check $SOURCE_FILES
+uv run pre-commit run --all-files --show-diff-on-failure

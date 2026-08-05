@@ -75,6 +75,7 @@ dev = [
   "ruff>=0.15.13",
   # Packaging
   "twine>=6.1.0",
+  "pre-commit>=4.4",
 ]
 # extra requirements for testing on emscripten
 emscripten = [
