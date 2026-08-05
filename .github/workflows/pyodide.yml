@@ -11,19 +11,27 @@ permissions:
 
 jobs:
   pyodide:
-    name: "Pyodide"
+    name: "Python ${{ matrix.python-version }}"
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The Python version that Pyodide bundles. The host interpreter uses the
+        # same version, since pytest-pyodide pickles objects between the two.
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          # `uv-dynamic-versioning` derives the version from the git history.
           fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          python-version: "3.13"
+          python-version: "${{ matrix.python-version }}"
           enable-cache: true
 
       - name: Install Chrome for Pyodide tests
@@ -41,9 +49,10 @@ jobs:
           browser-version: 22
 
       - name: Download Pyodide
-        uses: pyodide/pyodide-actions/download-pyodide@012fa537869d343726d01863a34b773fc4d96a14 # v2
+        # Resolves the latest Pyodide release bundling the given Python version.
+        uses: hoodmane/pyodide-actions/download-pyodide@eedd5c2d84f6444773ccfaf06244bc8b49e4043c # python-version-key
         with:
-          version: 0.29.3
+          python_version: "${{ matrix.python-version }}"
           to: pyodide_dist
 
       - name: Install dependencies
