@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import socket
 import threading
 import time
@@ -9,7 +10,9 @@ from pathlib import Path
 
 import httpx2
 import pytest
+from pytest_pyodide.fixture import selenium_common
 from pytest_pyodide.runner import SeleniumChromeRunner
+from pytest_pyodide.utils import parse_driver_timeout, set_webdriver_script_timeout
 
 Message = dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
@@ -178,16 +181,7 @@ def _patch_javascript_setup(
 SeleniumChromeRunner.javascript_setup = _patch_javascript_setup(SeleniumChromeRunner.javascript_setup)
 
 
-def _runner(
-    request: pytest.FixtureRequest,
-    has_jspi: bool,
-    wheel_urls: list[str],
-    is_worker: bool,
-) -> SeleniumChromeRunner:
-    fixture_name = "selenium_jspi" if has_jspi else "selenium"
-    if is_worker:
-        fixture_name += "_worker"
-    runner = request.getfixturevalue(fixture_name)
+def _install_requirements(runner: SeleniumChromeRunner, wheel_urls: list[str]) -> None:
     # `h2` is installed so that `httpx2.Client(http2=True)` gets far enough to
     # warn that HTTP/2 isn't supported on Emscripten.
     requirements = [*wheel_urls, "h2"]
@@ -200,7 +194,57 @@ def _runner(
         `);
         """
     )
-    return runner
+
+
+@pytest.fixture(scope="module")
+def runner_factory(
+    request: pytest.FixtureRequest,
+    runtime: str,
+    web_server_main: tuple[str, int, typing.Any],
+    playwright_browsers: dict[str, typing.Any],
+    wheel_urls: list[str],
+) -> typing.Iterator[typing.Callable[..., SeleniumChromeRunner]]:
+    """Return a factory of runners, cached by `(jspi, worker)`.
+
+    pytest-pyodide only offers function scoped JSPI runners, which means booting
+    a browser and installing the wheels for every single test. Caching them for
+    the whole module makes the suite several times faster.
+    """
+    runners: dict[tuple[bool, bool], SeleniumChromeRunner] = {}
+
+    with contextlib.ExitStack() as stack:
+
+        def runner_factory(*, jspi: bool, worker: bool) -> SeleniumChromeRunner:
+            if (jspi, worker) not in runners:
+                if worker and runtime == "node":
+                    pytest.skip("web workers are not supported in node")
+                runner = stack.enter_context(
+                    selenium_common(
+                        request,
+                        runtime,
+                        web_server_main,
+                        browsers=playwright_browsers,
+                        jspi=jspi,
+                        worker=worker,
+                    )
+                )
+                _install_requirements(runner, wheel_urls)
+                runners[jspi, worker] = runner
+            return runners[jspi, worker]
+
+        yield runner_factory
+
+
+def _runner(
+    request: pytest.FixtureRequest,
+    runner_factory: typing.Callable[..., SeleniumChromeRunner],
+    has_jspi: bool,
+    is_worker: bool,
+) -> typing.Iterator[SeleniumChromeRunner]:
+    runner = runner_factory(jspi=has_jspi, worker=is_worker)
+    runner.clean_logs()
+    with set_webdriver_script_timeout(runner, script_timeout=parse_driver_timeout(request.node)):
+        yield runner
 
 
 @pytest.fixture
@@ -208,9 +252,9 @@ def selenium_runner(
     request: pytest.FixtureRequest,
     runtime: str,
     has_jspi: bool,
-    wheel_urls: list[str],
-) -> typing.Any:
-    return _runner(request, has_jspi, wheel_urls, is_worker=False)
+    runner_factory: typing.Callable[..., SeleniumChromeRunner],
+) -> typing.Iterator[SeleniumChromeRunner]:
+    yield from _runner(request, runner_factory, has_jspi, is_worker=False)
 
 
 @pytest.fixture
@@ -218,9 +262,9 @@ def selenium_worker_runner(
     request: pytest.FixtureRequest,
     runtime: str,
     has_jspi: bool,
-    wheel_urls: list[str],
-) -> typing.Any:
-    return _runner(request, has_jspi, wheel_urls, is_worker=True)
+    runner_factory: typing.Callable[..., SeleniumChromeRunner],
+) -> typing.Iterator[SeleniumChromeRunner]:
+    yield from _runner(request, runner_factory, has_jspi, is_worker=True)
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
