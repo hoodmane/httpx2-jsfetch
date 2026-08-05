@@ -34,10 +34,6 @@ async def app(scope: Scope, receive: Receive, send: Send) -> None:
         await status_code(scope, receive, send)
     elif scope["path"].startswith("/echo_body"):
         await echo_body(scope, receive, send)
-    elif scope["path"].startswith("/echo_headers"):
-        await echo_headers(scope, receive, send)
-    elif scope["path"].startswith("/json"):
-        await hello_world_json(scope, receive, send)
     elif scope["path"].startswith("/wheel_download"):
         await wheel_download(scope, receive, send)
     else:
@@ -67,17 +63,6 @@ async def wheel_download(scope: Scope, receive: Receive, send: Send) -> None:
         }
     )
     await send({"type": "http.response.body", "body": wheel_file.read_bytes()})
-
-
-async def hello_world_json(scope: Scope, receive: Receive, send: Send) -> None:
-    await send(
-        {
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [[b"content-type", b"application/json"], *CORS_HEADERS],
-        }
-    )
-    await send({"type": "http.response.body", "body": b'{"Hello": "world!"}'})
 
 
 async def slow_response(scope: Scope, receive: Receive, send: Send) -> None:
@@ -127,18 +112,6 @@ async def echo_body(scope: Scope, receive: Receive, send: Send) -> None:
         }
     )
     await send({"type": "http.response.body", "body": body})
-
-
-async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
-    body = {name.capitalize().decode(): value.decode() for name, value in scope.get("headers", [])}
-    await send(
-        {
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [[b"content-type", b"application/json"], *CORS_HEADERS],
-        }
-    )
-    await send({"type": "http.response.body", "body": json.dumps(body).encode()})
 
 
 def free_tcp_port() -> int:
