@@ -70,7 +70,6 @@ dev = [
   "uvicorn>=0.35",
   # Linting
   "mypy>=1.17.1",
-  "ruff>=0.15.13",
   # Packaging
   "twine>=6.1.0",
   "pre-commit>=4.4",
