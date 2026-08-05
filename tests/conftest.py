@@ -11,10 +11,10 @@ import httpx2
 import pytest
 from pytest_pyodide.runner import SeleniumChromeRunner
 
-Message = typing.Dict[str, typing.Any]
+Message = dict[str, typing.Any]
 Receive = typing.Callable[[], typing.Awaitable[Message]]
-Send = typing.Callable[[typing.Dict[str, typing.Any]], typing.Coroutine[None, None, None]]
-Scope = typing.Dict[str, typing.Any]
+Send = typing.Callable[[dict[str, typing.Any]], typing.Coroutine[None, None, None]]
+Scope = dict[str, typing.Any]
 
 # The test server is always on a different origin than the page that Pyodide is
 # loaded from, so every response has to opt in to cross origin requests.

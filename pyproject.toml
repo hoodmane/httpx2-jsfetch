@@ -84,8 +84,22 @@ emscripten = [
 line-length = 120
 
 [tool.ruff.lint]
-select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
-ignore = ["B904", "B028", "C401", "PERF203"]
+select = [
+    "B0",     # bugbear (all B0* checks enabled by default)
+    "B904",   # bugbear (Within an except clause, raise exceptions with raise ... from err)
+    "B905",   # bugbear (zip() without an explicit strict= parameter set.)
+    "C4",     # flake8-comprehensions
+    "C9",     # mccabe complexity
+    "E",      # pycodestyles
+    "F",      # pyflakes
+    "I",      # isort
+    "PERF",   # Perflint
+    "PGH",    # pygrep-hooks
+    "PL",     # Pylint
+    "UP",     # pyupgrade
+    "W",      # pycodestyles
+]
+ignore = ["E402", "E501", "E731", "E741", "PLR0913", "PLR2004", "PLW2901", "UP031"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true

@@ -23,18 +23,13 @@ from __future__ import annotations
 
 import email.parser
 import warnings
+from collections.abc import AsyncIterator, Awaitable, Iterable, Iterator
 from contextlib import contextmanager
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
-    Awaitable,
-    Iterable,
-    Iterator,
-    Tuple,
     TypeVar,
-    Union,
 )
 
 import js
@@ -58,11 +53,7 @@ from httpx2._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 T = TypeVar("T", bound="JavascriptFetchTransport")
 A = TypeVar("A", bound="AsyncJavascriptFetchTransport")
 
-SOCKET_OPTION = Union[
-    Tuple[int, int, int],
-    Tuple[int, int, Union[bytes, bytearray]],
-    Tuple[int, int, None, int],
-]
+SOCKET_OPTION = tuple[int, int, int] | tuple[int, int, bytes | bytearray] | tuple[int, int, None, int]
 
 __all__ = ["AsyncJavascriptFetchTransport", "JavascriptFetchTransport"]
 
@@ -128,9 +119,9 @@ def _timeout(
     except JsException as err:
         if err.name == "AbortError":
             timer_id = None
-            raise TimeoutExceptionType(message="Request timed out")
+            raise TimeoutExceptionType(message="Request timed out") from err
         else:
-            raise ErrorExceptionType(message=err.message)
+            raise ErrorExceptionType(message=err.message) from err
     finally:
         if timer_id is not None:
             js.clearTimeout(timer_id)
@@ -217,7 +208,7 @@ def _do_fetch(request: Request, request_body: bytes | None, abort_controller_js:
 
 
 def _js_response_to_python(
-    Stream: "type[EmscriptenStream] | type[AsyncEmscriptenStream]",
+    Stream: type[EmscriptenStream] | type[AsyncEmscriptenStream],
     response_js: Any,
     read_timeout: float,
     abort_controller_js: Any,
@@ -467,6 +458,6 @@ def _no_jspi_fallback(request: Request) -> Response:
         return Response(status_code=js_xhr.status, headers=headers, content=body)
     except JsException as err:
         if err.name == "TimeoutError":
-            raise ConnectTimeout(message="Request timed out")
+            raise ConnectTimeout(message="Request timed out") from err
         else:
-            raise ConnectError(message=err.message)
+            raise ConnectError(message=err.message) from err
