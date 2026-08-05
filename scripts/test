@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -ex
+
+if [ -z $GITHUB_ACTIONS ]; then
+    scripts/check
+fi
+
+if [ ! -d 'pyodide_dist' ]; then
+    echo "No Pyodide distribution found. Run scripts/download-pyodide first." >&2
+    exit 1
+fi
+
+if ! ls dist/httpx2-*.whl >/dev/null 2>&1 || ! ls dist/httpx2_jsfetch-*.whl >/dev/null 2>&1; then
+    echo "No wheels found in dist/. Run scripts/build first." >&2
+    exit 1
+fi
+
+# run the tests on chrome (with and without JSPI) and on node.js (JSPI only)
+uv run coverage run -p -m pytest -v --dist-dir="${PWD}/pyodide_dist" --rt=chrome-no-host "$@"
+uv run coverage run -p -m pytest -v --dist-dir="${PWD}/pyodide_dist" --rt=node-no-host "$@"
+
+if [ -z $GITHUB_ACTIONS ]; then
+    scripts/coverage
+fi

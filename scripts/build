@@ -1,0 +1,11 @@
+#!/bin/sh -e
+
+set -x
+
+rm -rf dist
+uv build
+uv run twine check dist/*
+
+# The Pyodide tests install both this package and `httpx2` with micropip, so
+# they need a wheel for each of them in `dist/`.
+scripts/build-httpx2-wheel

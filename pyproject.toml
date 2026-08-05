@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-fancy-pypi-readme", "uv-dynamic-versioning>=0.8.0"]
+requires = ["hatchling", "uv-dynamic-versioning>=0.14.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -13,7 +13,8 @@ fallback-version = "0.0.0"
 
 [project]
 name = "httpx2-jsfetch"
-description = "The next generation HTTP client."
+description = "httpx2 transports for Emscripten/Pyodide, backed by the JavaScript fetch API."
+readme = "README.md"
 license = "BSD-3-Clause"
 requires-python = ">=3.10"
 authors = [
@@ -23,7 +24,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
     "Framework :: AsyncIO",
-    "Framework :: Trio",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
@@ -36,16 +36,89 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
 ]
-dynamic = ["readme", "version", "dependencies"]
-
+# No runtime dependencies: `httpx2` depends on us on Emscripten, not the other
+# way around.
+dynamic = ["version"]
 
 [tool.hatch.build.targets.sdist]
-include = ["httpx2_jsfetch", "/CHANGELOG.md"]
+include = ["httpx2_jsfetch"]
 
 [tool.hatch.build.targets.sdist.force-include]
 "README.md" = "README.md"
 "LICENSE.md" = "LICENSE.md"
 
 [tool.hatch.build.targets.wheel]
-packages = ["httpx2-jsfetch"]
+packages = ["httpx2_jsfetch"]
 
+[tool.uv]
+default-groups = ["dev"]
+required-version = ">=0.8.6"
+
+# On Emscripten `httpx2` dispatches to the transports in this package, so we
+# develop and test against the branch that wires them up.
+[tool.uv.sources]
+httpx2 = { git = "https://github.com/hoodmane/httpx2", branch = "use-httpx2-jsfetch", subdirectory = "src/httpx2" }
+httpcore2 = { git = "https://github.com/hoodmane/httpx2", branch = "use-httpx2-jsfetch", subdirectory = "src/httpcore2" }
+
+[dependency-groups]
+dev = [
+  "httpx2",
+  # `httpcore2` is only listed so that the `httpcore2==<version>` pin of the
+  # `httpx2` git checkout resolves against the same commit.
+  "httpcore2",
+  # Tests
+  "coverage[toml]>=7.10.6",
+  "pytest>=9.0.3",
+  "uvicorn>=0.35",
+  # Linting
+  "mypy>=1.17.1",
+  "ruff>=0.15.13",
+  # Packaging
+  "twine>=6.1.0",
+]
+# extra requirements for testing on emscripten
+emscripten = [
+  "pytest-pyodide>=0.59.2; python_full_version >= '3.11'",
+  "selenium",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "PERF", "PIE", "W"]
+ignore = ["B904", "B028", "C401", "PERF203"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["httpx2_jsfetch"]
+
+[tool.mypy]
+ignore_missing_imports = true
+strict = true
+
+[tool.pytest.ini_options]
+addopts = "-rxXs --import-mode=importlib"
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source_pkgs = ["httpx2_jsfetch", "tests"]
+
+[tool.coverage.paths]
+source = [
+  "httpx2_jsfetch",
+  "*/site-packages/httpx2_jsfetch",
+]
+tests = [
+  "tests",
+  "*/tests",
+]
+
+[tool.coverage.report]
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@(typing\\.)?overload",
+]

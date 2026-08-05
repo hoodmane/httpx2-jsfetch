@@ -52,8 +52,8 @@ from httpx2._exceptions import (
     RequestError,
 )
 from httpx2._models import Request, Response
-from httpx2._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 from httpx2._transports.base import AsyncBaseTransport, BaseTransport
+from httpx2._types import AsyncByteStream, CertTypes, ProxyTypes, SyncByteStream
 
 T = TypeVar("T", bound="JavascriptFetchTransport")
 A = TypeVar("A", bound="AsyncJavascriptFetchTransport")

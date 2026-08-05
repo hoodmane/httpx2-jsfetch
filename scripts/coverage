@@ -1,0 +1,6 @@
+#!/bin/sh -e
+
+set -x
+
+uv run coverage combine
+uv run coverage report --show-missing --skip-covered --fail-under=100

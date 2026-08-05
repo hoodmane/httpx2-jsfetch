@@ -1,0 +1,23 @@
+#!/bin/sh -e
+#
+# Build a wheel for the `httpx2` branch that dispatches to this package on
+# Emscripten. The Pyodide tests serve it from `dist/` and install it with
+# micropip, since there is no released `httpx2` with Emscripten support yet.
+#
+# Keep the default ref in sync with `[tool.uv.sources]` in `pyproject.toml`.
+
+set -x
+
+HTTPX2_REPO="${HTTPX2_REPO:-https://github.com/hoodmane/httpx2}"
+HTTPX2_REF="${HTTPX2_REF:-use-httpx2-jsfetch}"
+CHECKOUT="build/httpx2"
+
+if [ ! -d "$CHECKOUT/.git" ]; then
+    rm -rf "$CHECKOUT"
+    git clone --filter=blob:none --no-checkout "$HTTPX2_REPO" "$CHECKOUT"
+fi
+git -C "$CHECKOUT" fetch --force origin "$HTTPX2_REF"
+git -C "$CHECKOUT" checkout --force FETCH_HEAD
+
+rm -f dist/httpx2-*.whl
+uv build --wheel --package httpx2 --out-dir "$PWD/dist" "$CHECKOUT"
