@@ -181,19 +181,12 @@ def _patch_javascript_setup(
 SeleniumChromeRunner.javascript_setup = _patch_javascript_setup(SeleniumChromeRunner.javascript_setup)
 
 
-# Loading packages and installing wheels blows through pytest-pyodide's 20 second
-# default script timeout on CI, so give the setup plenty of room ...
-SETUP_SCRIPT_TIMEOUT = 120
-# ... but keep tests on a shorter one so that a hang fails reasonably fast.
-TEST_SCRIPT_TIMEOUT = 20
-
 # Packages that `run_in_pyodide_coverage` needs. Loading them during setup keeps
 # the cost out of whichever test happens to run first.
 HARNESS_PACKAGES = ["micropip", "coverage", "pytest", "tblib"]
 
 
 def _prepare_runner(runner: SeleniumChromeRunner, wheel_urls: list[str]) -> None:
-    runner.set_script_timeout(SETUP_SCRIPT_TIMEOUT)
     # `h2` is installed so that `httpx2.Client(http2=True)` gets far enough to
     # warn that HTTP/2 isn't supported on Emscripten.
     requirements = [*wheel_urls, "h2"]
@@ -201,12 +194,16 @@ def _prepare_runner(runner: SeleniumChromeRunner, wheel_urls: list[str]) -> None
         f"""
         await pyodide.loadPackage({HARNESS_PACKAGES!r});
         await pyodide.runPythonAsync(`
+            import os
+
+            # Coverage's C tracer doesn't load so use sysmon tracer
+            os.environ["COVERAGE_CORE"] = "sysmon"
+
             import micropip
             await micropip.install({requirements!r})
         `);
         """
     )
-    runner.set_script_timeout(TEST_SCRIPT_TIMEOUT)
 
 
 @pytest.fixture(scope="module")
