@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from httpx2 import URL
 from pytest_pyodide.decorator import run_in_pyodide_coverage
-from pytest_pyodide.runner import SeleniumChromeRunner
+from pytest_pyodide.runner import NodeRunner, SeleniumChromeRunner
 
 
 def run_in_pyodide(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -110,6 +110,50 @@ async def test_async_stream_response(selenium_runner: SeleniumChromeRunner, serv
         async with client.stream("GET", server_url) as response:
             chunks = [chunk async for chunk in response.aiter_bytes()]
     assert b"".join(chunks) == b"Hello, world!"
+
+
+@run_in_pyodide
+def test_sync_user_agent(selenium_runner: SeleniumChromeRunner | NodeRunner, server_url: URL, runtime: str) -> None:
+    import httpx2
+
+    import httpx2_jsfetch
+
+    url = server_url.copy_with(path="/echo_headers")
+    cases = [None, {"User-Agent": "custom-agent"}, {"uSeR-aGeNt": "mixed-case-agent"}]
+    with httpx2.Client() as client:
+        for headers in cases:
+            request = client.build_request("GET", url, headers=headers)
+            expected = request.headers["user-agent"]
+            actual = client.send(request).json()["user-agent"]
+            is_node = runtime.startswith("node")
+            assert httpx2_jsfetch._is_non_browser_runtime() is is_node
+            if is_node:
+                assert actual == expected
+            else:
+                assert actual != expected
+
+
+@run_in_pyodide
+async def test_async_user_agent(
+    selenium_runner: SeleniumChromeRunner | NodeRunner, server_url: URL, runtime: str
+) -> None:
+    import httpx2
+
+    import httpx2_jsfetch
+
+    url = server_url.copy_with(path="/echo_headers")
+    cases = [None, {"User-Agent": "custom-agent"}, {"uSeR-aGeNt": "mixed-case-agent"}]
+    async with httpx2.AsyncClient() as client:
+        for headers in cases:
+            request = client.build_request("GET", url, headers=headers)
+            expected = request.headers["user-agent"]
+            actual = (await client.send(request)).json()["user-agent"]
+            is_node = runtime.startswith("node")
+            assert httpx2_jsfetch._is_non_browser_runtime() is is_node
+            if is_node:
+                assert actual == expected
+            else:
+                assert actual != expected
 
 
 @run_in_pyodide

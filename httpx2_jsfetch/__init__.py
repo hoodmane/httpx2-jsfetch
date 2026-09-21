@@ -64,6 +64,30 @@ See also https://github.com/koenvo/pyodide-http/issues/22
 HEADERS_TO_IGNORE = ("user-agent",)
 
 
+def _is_non_browser_runtime() -> bool:
+    # Mirror Pyodide's checks in src/js/environments.ts.
+    is_workerd = (
+        hasattr(js, "navigator")
+        and isinstance(getattr(js.navigator, "userAgent", None), str)
+        and "Cloudflare-Workers" in js.navigator.userAgent
+    )
+    is_node = (
+        hasattr(js, "process")
+        and hasattr(js.process, "versions")
+        and isinstance(getattr(js.process.versions, "node", None), str)
+        and not getattr(js.process, "browser", False)
+    )
+    return is_node or is_workerd
+
+
+def _get_request_headers(request: Request) -> dict[str, str]:
+    if _is_non_browser_runtime():
+        return dict(request.headers.items())
+
+    # Browsers do not allow setting certain headers, so we filter them out
+    return {name: value for name, value in request.headers.items() if name.lower() not in HEADERS_TO_IGNORE}
+
+
 # Default values of ignored options.
 # If a different value is passed for any of these is passed we'll warn.
 # trust_env and http1 are not listed here because they don't conflict with the
@@ -193,9 +217,8 @@ def _compute_timeouts(extensions: dict[str, Any]) -> tuple[float, float]:
 
 
 def _do_fetch(request: Request, request_body: bytes | None, abort_controller_js: Any) -> Awaitable[JsProxy]:
-    headers = {k: v for k, v in request.headers.items() if k not in HEADERS_TO_IGNORE}
     fetch_data = {
-        "headers": headers,
+        "headers": _get_request_headers(request),
         "body": to_js(request_body),
         "method": request.method,
         "signal": abort_controller_js.signal,
@@ -442,9 +465,8 @@ def _no_jspi_fallback(request: Request) -> Response:
 
         js_xhr.open(request.method, request.url, False)
 
-        for name, value in request.headers.items():
-            if name.lower() not in HEADERS_TO_IGNORE:
-                js_xhr.setRequestHeader(name, value)
+        for name, value in _get_request_headers(request).items():
+            js_xhr.setRequestHeader(name, value)
 
         js_xhr.send(to_js(req_body))
 
