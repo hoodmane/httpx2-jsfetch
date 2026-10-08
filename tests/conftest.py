@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import shutil
 import socket
 import threading
@@ -37,6 +38,8 @@ async def app(scope: Scope, receive: Receive, send: Send) -> None:
         await status_code(scope, receive, send)
     elif scope["path"].startswith("/echo_body"):
         await echo_body(scope, receive, send)
+    elif scope["path"].startswith("/echo_headers"):
+        await echo_headers(scope, receive, send)
     elif scope["path"].startswith("/wheel_download"):
         await wheel_download(scope, receive, send)
     else:
@@ -115,6 +118,22 @@ async def echo_body(scope: Scope, receive: Receive, send: Send) -> None:
         }
     )
     await send({"type": "http.response.body", "body": body})
+
+
+async def echo_headers(scope: Scope, receive: Receive, send: Send) -> None:
+    headers = {name.decode("latin-1"): value.decode("latin-1") for name, value in scope["headers"]}
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"cache-control", b"no-store"],
+                *CORS_HEADERS,
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": json.dumps(headers).encode()})
 
 
 def free_tcp_port() -> int:
