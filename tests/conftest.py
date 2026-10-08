@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import shutil
 import socket
 import threading
 import time
@@ -198,6 +199,33 @@ def _patch_javascript_setup(
 
 
 SeleniumChromeRunner.javascript_setup = _patch_javascript_setup(SeleniumChromeRunner.javascript_setup)
+
+
+def _get_driver(self: SeleniumChromeRunner, jspi: bool = False) -> typing.Any:
+    """Make ChromeDriver launch the Chrome from `PATH`.
+
+    Same as `SeleniumChromeRunner.get_driver`, but sets `binary_location`, which
+    pytest-pyodide gives us no way to configure. Without it ChromeDriver
+    searches well known install locations before `PATH`.
+    """
+    from selenium.webdriver import Chrome
+    from selenium.webdriver.chrome.options import Options
+
+    options = Options()
+    # Prefer a chrome on the path
+    if chrome := shutil.which("google-chrome"):
+        options.binary_location = chrome
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    if jspi:
+        options.add_argument("--enable-features=WebAssemblyExperimentalJSPI")
+        options.add_argument("--enable-experimental-webassembly-features")
+    for flag in self._config.get_flags("chrome"):
+        options.add_argument(flag)
+    return Chrome(options=options)
+
+
+SeleniumChromeRunner.get_driver = _get_driver
 
 
 # Packages that `run_in_pyodide_coverage` needs. Loading them during setup keeps
