@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import gzip
 import shutil
 import socket
 import threading
@@ -39,6 +40,8 @@ async def app(scope: Scope, receive: Receive, send: Send) -> None:
         await echo_body(scope, receive, send)
     elif scope["path"].startswith("/wheel_download"):
         await wheel_download(scope, receive, send)
+    elif scope["path"].startswith("/gzip"):
+        await gzip_response(scope, receive, send)
     else:
         await hello_world(scope, receive, send)
 
@@ -52,6 +55,24 @@ async def hello_world(scope: Scope, receive: Receive, send: Send) -> None:
         }
     )
     await send({"type": "http.response.body", "body": b"Hello, world!"})
+
+
+async def gzip_response(scope: Scope, receive: Receive, send: Send) -> None:
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                [b"content-type", b"text/plain"],
+                [b"content-encoding", b"gzip"],
+                *CORS_HEADERS,
+                # Content-Encoding isn't a CORS-safelisted response header. A
+                # same-origin response exposes it without this.
+                [b"access-control-expose-headers", b"content-encoding"],
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": gzip.compress(b"Hello, world!")})
 
 
 # Serving the wheels from `dist/` lets us install them with micropip, which is
