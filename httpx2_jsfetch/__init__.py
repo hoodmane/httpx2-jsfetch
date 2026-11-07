@@ -449,6 +449,8 @@ def _no_jspi_fallback(request: Request) -> Response:
         js_xhr.send(to_js(req_body))
 
         headers = dict(email.parser.Parser().parsestr(js_xhr.getAllResponseHeaders()))
+        # fix content-encoding headers because XMLHttpRequest handles that
+        headers["content-encoding"] = "identity"
 
         if not _is_in_browser_main_thread():
             body = js_xhr.response.to_py().tobytes()

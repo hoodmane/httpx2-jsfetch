@@ -53,6 +53,25 @@ def test_get_worker(selenium_worker_runner: SeleniumChromeRunner, server_url: UR
 
 
 @run_in_pyodide
+def test_get_gzip(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
+    import httpx2
+
+    # The runtime decodes the body, so httpx2 must not decode it again.
+    response = httpx2.get(server_url.copy_with(path="/gzip"))
+    assert response.status_code == 200
+    assert response.text == "Hello, world!"
+
+
+@run_in_pyodide
+def test_get_gzip_worker(selenium_worker_runner: SeleniumChromeRunner, server_url: URL) -> None:
+    import httpx2
+
+    response = httpx2.get(server_url.copy_with(path="/gzip"))
+    assert response.status_code == 200
+    assert response.text == "Hello, world!"
+
+
+@run_in_pyodide
 def test_post(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
     import httpx2
 
@@ -90,6 +109,16 @@ async def test_async_get(selenium_runner: SeleniumChromeRunner, server_url: URL)
         assert response.http_version == "HTTP/1.1"
         assert response.headers
         assert repr(response) == "<Response [200 OK]>"
+
+
+@run_in_pyodide
+async def test_async_get_gzip(selenium_runner: SeleniumChromeRunner, server_url: URL) -> None:
+    import httpx2
+
+    async with httpx2.AsyncClient() as client:
+        response = await client.get(server_url.copy_with(path="/gzip"))
+        assert response.status_code == 200
+        assert response.text == "Hello, world!"
 
 
 @run_in_pyodide
